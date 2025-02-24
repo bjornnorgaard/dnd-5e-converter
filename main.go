@@ -18,19 +18,9 @@ func main() {
 		ctx   = context.Background()
 		path  = filepath.Join("..", "5etools-src", "data", "spells")
 		start = time.Now()
-		files []string
 	)
 
-	err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
-		if d.IsDir() {
-			return nil
-		}
-		if filepath.Ext(path) != ".json" {
-			return nil
-		}
-		files = append(files, path)
-		return nil
-	})
+	files, err := findFiles(path)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,7 +47,21 @@ func main() {
 		spells = append(spells, res...)
 	}
 
-	_, err = spellMarkdown(ctx, spells[0])
+	md, err := spellMarkdown(ctx, spells[0])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	spellsPath := filepath.Join("out", "spells")
+	err = os.MkdirAll(spellsPath, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = os.WriteFile(filepath.Join(spellsPath, md.FileName), []byte(md.Markdown), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	slog.InfoContext(ctx, "finished parsing files",
 		slog.Duration("elapsed", time.Since(start)),
@@ -66,7 +70,40 @@ func main() {
 		))
 }
 
-func spellMarkdown(ctx context.Context, m json.RawMessage) (*string, error) {
+func findFiles(path string) ([]string, error) {
+	var files []string
+	err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+		if d.IsDir() {
+			return nil
+		}
+		if filepath.Ext(path) != ".json" {
+			return nil
+		}
+		files = append(files, path)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to walk directory '%s': %w", path, err)
+	}
+	return files, nil
+}
+
+type RenderResult struct {
+	Markdown string
+	FileName string
+}
+
+var schoolMap = map[string]string{
+	"A":  "Abjuration",
+	"C":  "Conjuration",
+	"D":  "Divination",
+	"E":  "Enchantment",
+	"EV": "Evocation",
+	"I":  "Illusion",
+	"N":  "Necromancy",
+}
+
+func spellMarkdown(ctx context.Context, m json.RawMessage) (*RenderResult, error) {
 	data, err := m.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -77,14 +114,45 @@ func spellMarkdown(ctx context.Context, m json.RawMessage) (*string, error) {
 		return nil, fmt.Errorf("failed to unmarshal spell")
 	}
 
-	for field, value := range spell {
-		slog.InfoContext(ctx, "spell",
-			slog.String("field", field),
-			slog.Any("value", value),
-		)
+	res := RenderResult{}
+
+	var structured struct {
+		name   string
+		level  int
+		school string
+		time   struct {
+			number int
+			unit   string
+		}
+		todo []string
 	}
 
-	return nil, nil
+	for field, value := range spell {
+		switch field {
+		case "name":
+			structured.name = value.(string)
+			res.FileName = fmt.Sprintf("%s.md", value.(string))
+		case "level":
+			structured.level = int(value.(float64))
+		case "school":
+			school, ok := schoolMap[value.(string)]
+			if !ok {
+				slog.WarnContext(ctx, "unknown school", slog.String("school", value.(string)))
+			}
+			structured.school = school
+		default:
+			slog.WarnContext(ctx, "unhandled field", slog.String("field", field), slog.Any("value", value))
+			structured.todo = append(structured.todo, fmt.Sprintf("#todo %s: %v", field, value))
+		}
+	}
+
+	var lines []string
+	lines = append(lines, fmt.Sprintf("# %s", structured.name))
+	lines = append(lines, fmt.Sprintf("*Level %d %s*", structured.level, structured.school))
+	lines = append(lines, structured.todo...)
+	res.Markdown = strings.Join(lines, "\n\n")
+
+	return &res, nil
 }
 
 func extractRawSpellList(path string) ([]json.RawMessage, error) {
