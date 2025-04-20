@@ -24,4 +24,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	err = converter.ParseItems(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

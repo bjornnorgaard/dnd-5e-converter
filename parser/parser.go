@@ -27,3 +27,8 @@ func (p Parser) ParseSpells(ctx context.Context) error {
 func (p Parser) ParseMonsters(ctx context.Context) error {
 	return parseMonsters(ctx, p.DataDirectory, p.OutDirectory)
 }
+
+// ParseItems parses the item data from the specified directory and writes it to the output directory.
+func (p Parser) ParseItems(ctx context.Context) error {
+	return parseItems(ctx, p.DataDirectory, p.OutDirectory)
+}
