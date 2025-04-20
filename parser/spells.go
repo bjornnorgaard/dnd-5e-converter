@@ -580,6 +580,21 @@ func processSpecialFormatting(text string) string {
 	// Handle {@hazard X} format - converts hazard references to plain text
 	text = processHazardTag(text)
 
+	// Handle {@atk X} format - converts attack tags to plain text
+	text = processAttackTag(text)
+
+	// Handle {@hit X} format - converts hit bonus tags to plain text
+	text = processHitTag(text)
+
+	// Handle {@h} format - converts hit tags to plain text
+	text = processHTag(text)
+
+	// Handle {@dc X} format - converts DC tags to plain text
+	text = processDCTag(text)
+
+	// Handle {@recharge X} format - converts recharge tags to plain text
+	text = processRechargeTag(text)
+
 	return text
 }
 
@@ -766,6 +781,130 @@ func processHazardTag(text string) string {
 		hazardText := text[start+9 : end]
 		parts := strings.Split(hazardText, "|")
 		displayText := parts[0]
+
+		text = text[:start] + displayText + text[end+1:]
+	}
+
+	return text
+}
+
+// processAttackTag handles the {@atk X} format in monster descriptions
+// Example: {@atk mw} -> (melee weapon)
+func processAttackTag(text string) string {
+	// Simple regex-like replacement for {@atk X}
+	for {
+		start := strings.Index(text, "{@atk ")
+		if start == -1 {
+			break
+		}
+
+		end := strings.Index(text[start:], "}")
+		if end == -1 {
+			break
+		}
+		end += start
+
+		atkText := text[start+6 : end]
+		var displayText string
+		switch atkText {
+		case "mw":
+			displayText = "(melee weapon)"
+		case "rw":
+			displayText = "(ranged weapon)"
+		case "ms":
+			displayText = "(melee spell)"
+		case "rs":
+			displayText = "(ranged spell)"
+		default:
+			displayText = ""
+		}
+
+		text = text[:start] + displayText + text[end+1:]
+	}
+
+	return text
+}
+
+// processHitTag handles the {@hit X} format in monster descriptions
+// Example: {@hit 13} -> +13
+func processHitTag(text string) string {
+	// Simple regex-like replacement for {@hit X}
+	for {
+		start := strings.Index(text, "{@hit ")
+		if start == -1 {
+			break
+		}
+
+		end := strings.Index(text[start:], "}")
+		if end == -1 {
+			break
+		}
+		end += start
+
+		hitText := text[start+6 : end]
+		displayText := "+" + hitText
+
+		text = text[:start] + displayText + text[end+1:]
+	}
+
+	return text
+}
+
+// processHTag handles the {@h} format in monster descriptions
+// Example: {@h} -> Hit:
+func processHTag(text string) string {
+	// Simple replacement for {@h}
+	return strings.ReplaceAll(text, "{@h}", "Hit:")
+}
+
+// processDCTag handles the {@dc X} format in monster descriptions
+// Example: {@dc 19} -> DC 19
+func processDCTag(text string) string {
+	// Simple regex-like replacement for {@dc X}
+	for {
+		start := strings.Index(text, "{@dc ")
+		if start == -1 {
+			break
+		}
+
+		end := strings.Index(text[start:], "}")
+		if end == -1 {
+			break
+		}
+		end += start
+
+		dcText := text[start+5 : end]
+		displayText := "DC " + dcText
+
+		text = text[:start] + displayText + text[end+1:]
+	}
+
+	return text
+}
+
+// processRechargeTag handles the {@recharge X} format in monster descriptions
+// Example: {@recharge 5} -> (Recharge 5-6)
+func processRechargeTag(text string) string {
+	// Simple regex-like replacement for {@recharge X}
+	for {
+		start := strings.Index(text, "{@recharge ")
+		if start == -1 {
+			break
+		}
+
+		end := strings.Index(text[start:], "}")
+		if end == -1 {
+			break
+		}
+		end += start
+
+		rechargeText := text[start+10 : end]
+		var displayText string
+		if rechargeText == "0" {
+			displayText = "(Recharge after a Short or Long Rest)"
+		} else {
+			displayText = "(Recharge " + rechargeText + "-6)"
+		}
 
 		text = text[:start] + displayText + text[end+1:]
 	}
