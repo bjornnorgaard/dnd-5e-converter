@@ -13,7 +13,14 @@ func main() {
 		OutDirectory:  filepath.Join(".", "out"),
 	})
 
-	err := converter.ParseSpells(context.Background())
+	ctx := context.Background()
+
+	err := converter.ParseSpells(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = converter.ParseMonsters(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

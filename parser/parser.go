@@ -23,3 +23,7 @@ func New(config Config) *Parser {
 func (p Parser) ParseSpells(ctx context.Context) error {
 	return parseSpells(ctx, p.DataDirectory, p.OutDirectory)
 }
+
+func (p Parser) ParseMonsters(ctx context.Context) error {
+	return parseMonsters(ctx, p.DataDirectory, p.OutDirectory)
+}
