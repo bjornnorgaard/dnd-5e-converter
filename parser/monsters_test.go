@@ -31,6 +31,29 @@ func TestGetSizeString(t *testing.T) {
 	}
 }
 
+func TestGetAlignmentString(t *testing.T) {
+	tests := []struct {
+		alignment string
+		expected  string
+	}{
+		{"L", "lawful"},
+		{"N", "neutral"},
+		{"C", "chaotic"},
+		{"G", "good"},
+		{"E", "evil"},
+		{"U", "unaligned"},
+		{"A", "any alignment"},
+		{"neutral good", "neutral good"}, // Already expanded alignment should return itself
+	}
+
+	for _, test := range tests {
+		result := getAlignmentString(test.alignment)
+		if result != test.expected {
+			t.Errorf("getAlignmentString(%s) = %s; want %s", test.alignment, result, test.expected)
+		}
+	}
+}
+
 func TestGetAbilityModifier(t *testing.T) {
 	tests := []struct {
 		score    int
@@ -257,9 +280,10 @@ func TestParseMonsters_WithMockData(t *testing.T) {
 // TestMonsterToMarkdown_EdgeCases tests the monsterToMarkdown function with various edge cases
 func TestMonsterToMarkdown_EdgeCases(t *testing.T) {
 	tests := []struct {
-		name     string
-		monster  Monster
-		expected []string
+		name        string
+		monster     Monster
+		expected    []string
+		notExpected []string
 	}{
 		{
 			name: "Monster with complex type",
@@ -389,6 +413,41 @@ func TestMonsterToMarkdown_EdgeCases(t *testing.T) {
 				"**Senses** darkvision 60 ft., tremorsense 30 ft., passive Perception 10",
 			},
 		},
+		{
+			name: "Monster with empty languages",
+			monster: Monster{
+				Name:      "Basilisk",
+				Source:    "TEST",
+				Size:      "M",
+				Type:      "monstrosity",
+				Alignment: "U",
+				AC:        float64(15),
+				HP: map[string]interface{}{
+					"average": float64(52),
+					"formula": "8d8+16",
+				},
+				Speed: map[string]interface{}{
+					"walk": float64(20),
+				},
+				STR:       16,
+				DEX:       8,
+				CON:       15,
+				INT:       2,
+				WIS:       8,
+				CHA:       7,
+				Senses:    "darkvision 60 ft.",
+				Languages: "",
+				CR:        "3",
+			},
+			expected: []string{
+				"*Medium monstrosity, unaligned*",
+				"**Senses** darkvision 60 ft.",
+				"**Challenge** 3",
+			},
+			notExpected: []string{
+				"**Languages**",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -401,6 +460,12 @@ func TestMonsterToMarkdown_EdgeCases(t *testing.T) {
 			for _, expected := range tt.expected {
 				if !strings.Contains(md, expected) {
 					t.Errorf("monsterToMarkdown() output missing expected element: %s", expected)
+				}
+			}
+
+			for _, notExpected := range tt.notExpected {
+				if strings.Contains(md, notExpected) {
+					t.Errorf("monsterToMarkdown() output contains unexpected element: %s", notExpected)
 				}
 			}
 		})

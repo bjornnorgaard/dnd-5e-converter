@@ -163,12 +163,12 @@ func monsterToMarkdown(monster Monster) (string, error) {
 	var alignmentStr string
 	switch a := monster.Alignment.(type) {
 	case string:
-		alignmentStr = a
+		alignmentStr = getAlignmentString(a)
 	case []interface{}:
 		alignments := make([]string, 0, len(a))
 		for _, align := range a {
 			if alignStr, ok := align.(string); ok {
-				alignments = append(alignments, alignStr)
+				alignments = append(alignments, getAlignmentString(alignStr))
 			}
 		}
 		alignmentStr = strings.Join(alignments, " ")
@@ -321,20 +321,29 @@ func monsterToMarkdown(monster Monster) (string, error) {
 	md.WriteString("\n\n")
 
 	// Languages
-	md.WriteString("**Languages** ")
+	var languagesContent string
 	switch langs := monster.Languages.(type) {
 	case string:
-		md.WriteString(langs)
+		if langs != "" {
+			languagesContent = langs
+		}
 	case []interface{}:
 		langStrs := make([]string, 0, len(langs))
 		for _, lang := range langs {
-			if langStr, ok := lang.(string); ok {
+			if langStr, ok := lang.(string); ok && langStr != "" {
 				langStrs = append(langStrs, langStr)
 			}
 		}
-		md.WriteString(strings.Join(langStrs, ", "))
+		if len(langStrs) > 0 {
+			languagesContent = strings.Join(langStrs, ", ")
+		}
 	}
-	md.WriteString("\n\n")
+
+	if languagesContent != "" {
+		md.WriteString("**Languages** ")
+		md.WriteString(languagesContent)
+		md.WriteString("\n\n")
+	}
 
 	// Challenge Rating
 	md.WriteString("**Challenge** ")
@@ -437,6 +446,28 @@ func getSizeString(size string) string {
 		return "Gargantuan"
 	default:
 		return size
+	}
+}
+
+// getAlignmentString returns the full name of an alignment from its abbreviation
+func getAlignmentString(alignment string) string {
+	switch alignment {
+	case "L":
+		return "lawful"
+	case "N":
+		return "neutral"
+	case "C":
+		return "chaotic"
+	case "G":
+		return "good"
+	case "E":
+		return "evil"
+	case "U":
+		return "unaligned"
+	case "A":
+		return "any alignment"
+	default:
+		return alignment
 	}
 }
 
