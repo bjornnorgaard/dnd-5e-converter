@@ -75,9 +75,10 @@ type SpellComponents struct {
 
 // SpellDuration represents the duration of a spell
 type SpellDuration struct {
-	Type      string                 `json:"type"`
-	Duration  map[string]interface{} `json:"duration,omitempty"`
-	Condition string                 `json:"condition,omitempty"`
+	Type          string                 `json:"type"`
+	Duration      map[string]interface{} `json:"duration,omitempty"`
+	Condition     string                 `json:"condition,omitempty"`
+	Concentration bool                   `json:"concentration,omitempty"`
 }
 
 // SpellClasses represents the classes that can use a spell
@@ -257,6 +258,11 @@ func spellToMarkdown(spell Spell) (string, error) {
 		if duration.Type == "instant" {
 			md.WriteString("Instantaneous")
 		} else if duration.Type == "timed" {
+			// Check if this is a concentration spell
+			if duration.Concentration {
+				md.WriteString("Concentration, up to ")
+			}
+
 			if duration.Duration != nil {
 				if amount, ok := duration.Duration["amount"].(float64); ok {
 					unit, _ := duration.Duration["type"].(string)
@@ -309,6 +315,23 @@ func spellToMarkdown(spell Spell) (string, error) {
 							}
 						}
 						md.WriteString("\n")
+					}
+				} else if entryType == "entries" {
+					// Handle named entries sections (like in Control Water spell)
+					if name, ok := e["name"].(string); ok {
+						md.WriteString(fmt.Sprintf("**%s**\n\n", name))
+					}
+
+					if entries, ok := e["entries"].([]interface{}); ok {
+						for _, entry := range entries {
+							if entryStr, ok := entry.(string); ok {
+								md.WriteString(processSpecialFormatting(entryStr))
+								md.WriteString("\n\n")
+							} else if _, ok := entry.(map[string]interface{}); ok {
+								// Handle nested entries if needed
+								// This is a recursive case that might need more handling in the future
+							}
+						}
 					}
 				} else if entryType == "table" {
 					// Handle tables
@@ -620,6 +643,15 @@ func processSpecialFormatting(text string) string {
 
 	// Handle {@recharge X} format - converts recharge tags to plain text
 	text = processRechargeTag(text)
+
+	// Handle {@action X} format - converts action tags to plain text
+	text = processActionTag(text)
+
+	// Handle {@skill X} format - converts skill tags to plain text
+	text = processSkillTag(text)
+
+	// Handle {@chance X} format - converts chance tags to plain text
+	text = processChanceTag(text)
 
 	return text
 }
@@ -962,6 +994,98 @@ func processScaleDamageTag(text string) string {
 		displayText := parts[0] // Default to the base damage
 		if len(parts) > 2 {
 			displayText = parts[2] // Use the damage per level if available
+		}
+
+		text = text[:start] + displayText + text[end+1:]
+	}
+
+	return text
+}
+
+// processActionTag handles the {@action X} format in spell descriptions
+// Example: {@action Magic|XPHB} -> Magic
+func processActionTag(text string) string {
+	// Simple regex-like replacement for {@action X}
+	for {
+		start := strings.Index(text, "{@action ")
+		if start == -1 {
+			break
+		}
+
+		end := strings.Index(text[start:], "}")
+		if end == -1 {
+			break
+		}
+		end += start
+
+		// Extract the action name, handling the case where there might be a pipe character
+		// Format can be {@action name} or {@action name|source}
+		actionText := text[start+9 : end]
+		parts := strings.Split(actionText, "|")
+		displayText := parts[0]
+
+		text = text[:start] + displayText + text[end+1:]
+	}
+
+	return text
+}
+
+// processSkillTag handles the {@skill X} format in spell descriptions
+// Example: {@skill Athletics} -> Athletics
+func processSkillTag(text string) string {
+	// Simple regex-like replacement for {@skill X}
+	for {
+		start := strings.Index(text, "{@skill ")
+		if start == -1 {
+			break
+		}
+
+		end := strings.Index(text[start:], "}")
+		if end == -1 {
+			break
+		}
+		end += start
+
+		skillText := text[start+8 : end]
+		text = text[:start] + skillText + text[end+1:]
+	}
+
+	return text
+}
+
+// processChanceTag handles the {@chance X} format in spell descriptions
+// Example: {@chance 25|||Capsizes!|No effect} -> 25% chance
+func processChanceTag(text string) string {
+	// Simple regex-like replacement for {@chance X}
+	for {
+		start := strings.Index(text, "{@chance ")
+		if start == -1 {
+			break
+		}
+
+		end := strings.Index(text[start:], "}")
+		if end == -1 {
+			break
+		}
+		end += start
+
+		// Extract the chance text, which can be in various formats
+		chanceText := text[start+9 : end]
+		parts := strings.Split(chanceText, "|")
+
+		// Default display is just the percentage
+		displayText := parts[0] + "% chance"
+
+		// If there are more parts, they might be success/failure text
+		if len(parts) > 3 {
+			// Format: {@chance percent|||success|failure}
+			successText := parts[3]
+			failureText := parts[4]
+			if successText != "" && failureText != "" {
+				displayText = parts[0] + "% chance of " + successText + " (otherwise " + failureText + ")"
+			} else if successText != "" {
+				displayText = parts[0] + "% chance of " + successText
+			}
 		}
 
 		text = text[:start] + displayText + text[end+1:]
