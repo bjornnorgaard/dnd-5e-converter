@@ -21,24 +21,25 @@ type SpellFile struct {
 
 // Spell represents a single spell entry
 type Spell struct {
-	Name             string                 `json:"name"`
-	Source           string                 `json:"source"`
-	Page             int                    `json:"page,omitempty"`
-	Level            int                    `json:"level"`
-	School           string                 `json:"school"`
-	Time             []SpellTime            `json:"time"`
-	Range            SpellRange             `json:"range"`
-	Components       SpellComponents        `json:"components"`
-	Duration         []SpellDuration        `json:"duration"`
-	Entries          []interface{}          `json:"entries"`
-	EntriesHigher    []interface{}          `json:"entriesHigher,omitempty"`
-	DamageInflict    []string               `json:"damageInflict,omitempty"`
-	SavingThrow      []string               `json:"savingThrow,omitempty"`
-	MiscTags         []string               `json:"miscTags,omitempty"`
-	AreaTags         []string               `json:"areaTags,omitempty"`
-	Classes          SpellClasses           `json:"classes,omitempty"`
-	Meta             map[string]interface{} `json:"meta,omitempty"`
-	ScalingLevelDice interface{}            `json:"scalingLevelDice,omitempty"`
+	Name               string                 `json:"name"`
+	Source             string                 `json:"source"`
+	Page               int                    `json:"page,omitempty"`
+	Level              int                    `json:"level"`
+	School             string                 `json:"school"`
+	Time               []SpellTime            `json:"time"`
+	Range              SpellRange             `json:"range"`
+	Components         SpellComponents        `json:"components"`
+	Duration           []SpellDuration        `json:"duration"`
+	Entries            []interface{}          `json:"entries"`
+	EntriesHigher      []interface{}          `json:"entriesHigher,omitempty"`
+	EntriesHigherLevel []interface{}          `json:"entriesHigherLevel,omitempty"`
+	DamageInflict      []string               `json:"damageInflict,omitempty"`
+	SavingThrow        []string               `json:"savingThrow,omitempty"`
+	MiscTags           []string               `json:"miscTags,omitempty"`
+	AreaTags           []string               `json:"areaTags,omitempty"`
+	Classes            SpellClasses           `json:"classes,omitempty"`
+	Meta               map[string]interface{} `json:"meta,omitempty"`
+	ScalingLevelDice   interface{}            `json:"scalingLevelDice,omitempty"`
 	// Fields for handling variations in spell data
 	SRD         interface{} `json:"srd,omitempty"`
 	BasicRules  interface{} `json:"basicRules,omitempty"`
@@ -436,6 +437,28 @@ func spellToMarkdown(spell Spell) (string, error) {
 				}
 			}
 		}
+	} else if len(spell.EntriesHigherLevel) > 0 {
+		// Process entriesHigherLevel field
+		for _, entry := range spell.EntriesHigherLevel {
+			if entryMap, ok := entry.(map[string]interface{}); ok {
+				if entryType, ok := entryMap["type"].(string); ok && entryType == "entries" {
+					if name, ok := entryMap["name"].(string); ok {
+						md.WriteString(fmt.Sprintf("**%s:** ", name))
+					} else {
+						md.WriteString("**At Higher Levels:** ")
+					}
+
+					if entries, ok := entryMap["entries"].([]interface{}); ok {
+						for _, subEntry := range entries {
+							if subEntryStr, ok := subEntry.(string); ok {
+								md.WriteString(processSpecialFormatting(subEntryStr))
+								md.WriteString("\n\n")
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Damage Type
@@ -564,6 +587,9 @@ func processSpecialFormatting(text string) string {
 
 	// Handle {@dice X} format - converts dice tags to plain text
 	text = processDiceTag(text)
+
+	// Handle {@scaledamage X} format - converts scaled damage tags to plain text
+	text = processScaleDamageTag(text)
 
 	// Handle {@spell X} format - converts spell references to plain text
 	text = processSpellTag(text)
@@ -904,6 +930,38 @@ func processRechargeTag(text string) string {
 			displayText = "(Recharge after a Short or Long Rest)"
 		} else {
 			displayText = "(Recharge " + rechargeText + "-6)"
+		}
+
+		text = text[:start] + displayText + text[end+1:]
+	}
+
+	return text
+}
+
+// processScaleDamageTag handles the {@scaledamage X} format in spell descriptions
+// Example: {@scaledamage 8d6|3-9|1d6} -> 1d6
+func processScaleDamageTag(text string) string {
+	// Simple regex-like replacement for {@scaledamage X}
+	for {
+		start := strings.Index(text, "{@scaledamage ")
+		if start == -1 {
+			break
+		}
+
+		end := strings.Index(text[start:], "}")
+		if end == -1 {
+			break
+		}
+		end += start
+
+		// Extract the scaledamage text, which is in the format "baseDamage|levelRange|damagePerLevel"
+		scaleDamageText := text[start+13 : end]
+		parts := strings.Split(scaleDamageText, "|")
+
+		// Use the last part (damagePerLevel) as the display text
+		displayText := parts[0] // Default to the base damage
+		if len(parts) > 2 {
+			displayText = parts[2] // Use the damage per level if available
 		}
 
 		text = text[:start] + displayText + text[end+1:]
