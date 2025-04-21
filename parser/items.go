@@ -102,7 +102,11 @@ func itemToMarkdown(item Item) (string, error) {
 	// Basic info
 	var typeRarity string
 	if item.Rarity != "" {
-		typeRarity = fmt.Sprintf("*%s, %s*", item.Type, item.Rarity)
+		if item.Type != "" {
+			typeRarity = fmt.Sprintf("*%s, %s*", item.Type, item.Rarity)
+		} else {
+			typeRarity = fmt.Sprintf("*%s*", item.Rarity)
+		}
 	} else {
 		typeRarity = fmt.Sprintf("*%s*", item.Type)
 	}

@@ -279,20 +279,20 @@ func monsterToMarkdown(monster Monster) (string, error) {
 	}
 
 	// Skills
-	md.WriteString("**Skills** ")
 	switch skill := monster.Skill.(type) {
 	case map[string]string:
 		if len(skill) > 0 {
+			md.WriteString("**Skills** ")
 			skills := make([]string, 0, len(skill))
 			for skillName, bonus := range skill {
 				skills = append(skills, fmt.Sprintf("%s %s", skillName, bonus))
 			}
 			md.WriteString(strings.Join(skills, ", "))
-		} else {
-			md.WriteString("None")
+			md.WriteString("\n\n")
 		}
 	case map[string]interface{}:
 		if len(skill) > 0 {
+			md.WriteString("**Skills** ")
 			skills := make([]string, 0, len(skill))
 			for skillName, bonus := range skill {
 				if bonusStr, ok := bonus.(string); ok {
@@ -300,13 +300,9 @@ func monsterToMarkdown(monster Monster) (string, error) {
 				}
 			}
 			md.WriteString(strings.Join(skills, ", "))
-		} else {
-			md.WriteString("None")
+			md.WriteString("\n\n")
 		}
-	default:
-		md.WriteString("None")
 	}
-	md.WriteString("\n\n")
 
 	// Senses
 	md.WriteString("**Senses** ")

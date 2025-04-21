@@ -15,6 +15,30 @@ func TestItemToMarkdown(t *testing.T) {
 		expected string
 	}{
 		{
+			name: "Item with empty type but with rarity",
+			item: Item{
+				Name:               "Robe of the Archmagi",
+				Type:               "",
+				Rarity:             "legendary",
+				RequiresAttunement: "by a sorcerer, warlock, or wizard",
+				Source:             "DMG",
+				Page:               194,
+				Entries: []interface{}{
+					"This elegant garment is made from exquisite cloth of white, gray, or black and adorned with silvery runes. The robe's color corresponds to the alignment for which the item was created. A white robe was made for good, gray for neutral, and black for evil. You can't attune to a robe of the archmagi that doesn't correspond to your alignment.",
+					"You gain these benefits while wearing the robe:",
+					map[string]interface{}{
+						"type": "list",
+						"items": []interface{}{
+							"If you aren't wearing armor, your base Armor Class is 15 + your Dexterity modifier.",
+							"You have advantage on saving throws against spell and other magical effects.",
+							"Your spell save DC and spell attack bonus each increase by 2.",
+						},
+					},
+				},
+			},
+			expected: "# Robe of the Archmagi\n\n*legendary*\n\n*Requires attunement by a sorcerer, warlock, or wizard*\n\nThis elegant garment is made from exquisite cloth of white, gray, or black and adorned with silvery runes. The robe's color corresponds to the alignment for which the item was created. A white robe was made for good, gray for neutral, and black for evil. You can't attune to a robe of the archmagi that doesn't correspond to your alignment.\n\nYou gain these benefits while wearing the robe:\n\n- If you aren't wearing armor, your base Armor Class is 15 + your Dexterity modifier.\n- You have advantage on saving throws against spell and other magical effects.\n- Your spell save DC and spell attack bonus each increase by 2.\n\n**Source:** DMG, page 194\n",
+		},
+		{
 			name: "Basic item",
 			item: Item{
 				Name:   "Longsword",
